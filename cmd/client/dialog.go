@@ -428,7 +428,7 @@ func parseHex(input string) (uint16, error) {
 }
 
 func parseUint16(input string) (uint16, error) {
-	u64, err := strconv.ParseUint(input, 16, 64)
+	u64, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {
 		return 0, errors.New("could not parse decimal input")
 	}
