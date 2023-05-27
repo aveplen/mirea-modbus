@@ -46,6 +46,13 @@ var (
 		DialogTypeWriteMultipleCoils:     "Write multiple coils 0x0F",
 	}
 
+	inputTitleText = map[DialogType]string{
+		DialogTypeWriteSingleCoil:        "Input (example: 'true' or 'false')",
+		DialogTypeWriteSingleRegister:    "Input (example: '213' or '0x15')",
+		DialogTypeWriteMultipleRegisters: "Input (example: '213' or '0x15')",
+		DialogTypeWriteMultipleCoils:     "Input (example: 'true, false' or 'false')",
+	}
+
 	renderAmount = map[DialogType]bool{
 		DialogTypeReadCoils:              true,
 		DialogTypeReadDiscreteInputs:     true,
@@ -500,14 +507,14 @@ func DialogView(window *walk.MainWindow, model DialogModel, dialogType DialogTyp
 						Title:  "Amount (decimal)",
 						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
 						Children: []d.Widget{
-							d.TextEdit{AssignTo: &controller.cntEdit, Text: inputDefaultText[dialogType]},
+							d.TextEdit{AssignTo: &controller.cntEdit, Text: "1"},
 						},
 					})
 				}
 
 				if renderInput[dialogType] {
 					widgets = append(widgets, d.GroupBox{
-						Title:  "Input (example: '213, 45' or '0x15, 0x1')",
+						Title:  inputTitleText[dialogType],
 						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
 						Children: func() []d.Widget {
 							children := make([]d.Widget, 0, 2)
