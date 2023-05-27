@@ -57,22 +57,18 @@ var (
 		DialogTypeWriteMultipleCoils:     true,
 	}
 
-	renderBinaryInput = map[DialogType]bool{
-		DialogTypeReadCoils:              false,
-		DialogTypeReadDiscreteInputs:     false,
-		DialogTypeReadHoldingRegisters:   false,
-		DialogTypeReadInputRegisters:     false,
-		DialogTypeWriteSingleCoil:        true,
-		DialogTypeWriteSingleRegister:    false,
-		DialogTypeWriteMultipleRegisters: false,
-		DialogTypeWriteMultipleCoils:     true,
-	}
-
 	renderInput = map[DialogType]bool{
 		DialogTypeReadCoils:              false,
 		DialogTypeReadDiscreteInputs:     false,
 		DialogTypeReadHoldingRegisters:   false,
 		DialogTypeReadInputRegisters:     false,
+		DialogTypeWriteSingleCoil:        true,
+		DialogTypeWriteSingleRegister:    true,
+		DialogTypeWriteMultipleRegisters: true,
+		DialogTypeWriteMultipleCoils:     true,
+	}
+
+	renderInputHex = map[DialogType]bool{
 		DialogTypeWriteSingleCoil:        false,
 		DialogTypeWriteSingleRegister:    true,
 		DialogTypeWriteMultipleRegisters: true,
@@ -110,7 +106,6 @@ type DialogController struct {
 	addrEdit         *walk.TextEdit
 	hexAddrCheckBox  *walk.CheckBox
 	hexInputCheckBox *walk.CheckBox
-	binaryInputEdit  *walk.TextEdit
 	inputEdit        *walk.TextEdit
 	cntEdit          *walk.TextEdit
 	resultEdit       *walk.TextEdit
@@ -196,6 +191,7 @@ func (c *DialogController) WriteSingleCoil() {
 
 	input, ok := c.inputBool()
 	if !ok {
+		c.resultFail()
 		return
 	}
 
@@ -509,24 +505,27 @@ func DialogView(window *walk.MainWindow, model DialogModel, dialogType DialogTyp
 					})
 				}
 
-				if renderBinaryInput[dialogType] {
-					widgets = append(widgets, d.GroupBox{
-						Title:  "Input (example: 'true, false')",
-						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-						Children: []d.Widget{
-							d.TextEdit{AssignTo: &controller.binaryInputEdit, Text: inputDefaultText[dialogType]},
-						},
-					})
-				}
-
 				if renderInput[dialogType] {
 					widgets = append(widgets, d.GroupBox{
 						Title:  "Input (example: '213, 45' or '0x15, 0x1')",
 						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-						Children: []d.Widget{
-							d.TextEdit{AssignTo: &controller.inputEdit, Text: inputDefaultText[dialogType]},
-							d.CheckBox{AssignTo: &controller.hexInputCheckBox, Checked: true, Text: "Hexadecimal number"},
-						},
+						Children: func() []d.Widget {
+							children := make([]d.Widget, 0, 2)
+
+							children = append(children, d.TextEdit{
+								AssignTo: &controller.inputEdit,
+								Text:     inputDefaultText[dialogType],
+							})
+
+							if renderInputHex[dialogType] {
+								children = append(children, d.CheckBox{
+									AssignTo: &controller.hexInputCheckBox,
+									Checked:  true, Text: "Hexadecimal number",
+								})
+							}
+
+							return children
+						}(),
 					})
 				}
 
