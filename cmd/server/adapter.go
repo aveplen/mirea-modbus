@@ -9,7 +9,7 @@ import (
 
 const (
 	LogRequestSeparatorSymbol = "="
-	LogRequestSeparatorLength = 80
+	LogRequestSeparatorLength = 30
 )
 
 var LogRequestSeparator = func() string {
