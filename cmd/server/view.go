@@ -346,7 +346,6 @@ func NewView(seed Dump, model MainModel) *ViewController {
 		},
 	}
 
-	fmt.Println(view)
 	return view
 }
 
