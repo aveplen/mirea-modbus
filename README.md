@@ -1,2 +1,9 @@
 # mirea-modbus
-Implementation of tcp/modbus server
+
+### Сервер (slave)
+
+![server image](server.png)
+
+### Клиент (master)
+
+![client image](client.png)
