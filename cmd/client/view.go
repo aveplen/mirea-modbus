@@ -363,8 +363,8 @@ func MainView(model MainModel) func() {
 				d.TextEdit{
 					AssignTo:  &controller.errEdit,
 					MinSize:   d.Size{Width: 1, Height: 50},
-					ReadOnly:  true,
 					TextColor: walk.RGB(255, 0, 0),
+					ReadOnly:  true,
 				},
 			},
 		}.Run()

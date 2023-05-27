@@ -544,6 +544,7 @@ func DialogView(window *walk.MainWindow, model DialogModel, dialogType DialogTyp
 					},
 				})
 
+				widgets = append(widgets, d.Label{Text: "Errors:"})
 				widgets = append(widgets, d.TextEdit{
 					MinSize:   d.Size{Height: 100},
 					AssignTo:  &controller.errEdit,

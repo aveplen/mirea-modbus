@@ -273,7 +273,7 @@ func NewView(seed Dump, model MainModel) *ViewController {
 									{Title: "#", FormatFunc: numberDecimalFormat},
 									{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
 									{Title: "Address (hex)", FormatFunc: numberHexFormat},
-									{Title: "Coil", FormatFunc: boolFormat},
+									{Title: "Value", FormatFunc: boolFormat},
 								},
 							},
 

@@ -118,8 +118,8 @@ func (s *ModbusService) SetDiscreteInput(addr uint16, value bool) error {
 		return modbus.ErrIllegalDataAddress
 	}
 
-	prev := s.coils[index].value
-	s.coils[index].value = value
+	prev := s.discreteInputs[index].value
+	s.discreteInputs[index].value = value
 	for _, sub := range s.discreteInputSubs {
 		sub(CoilChange{from: prev, to: value, addr: addr})
 	}
