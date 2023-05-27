@@ -12,6 +12,17 @@ import (
 
 type DialogType int
 
+type DialogModel interface {
+	ReadCoils(addr uint16, cnt int) ([]bool, error)
+	ReadDiscreteInputs(addr uint16, cnt int) ([]bool, error)
+	ReadHoldingRegisters(addr uint16, cnt int) ([]uint16, error)
+	ReadInputRegisters(addr uint16, cnt int) ([]uint16, error)
+	WriteSingleCoil(addr uint16, value bool) error
+	WriteSingleRegister(addr uint16, value uint16) error
+	WriteMultipleRegisters(addr uint16, values []uint16) error
+	WriteMultipleCoils(addr uint16, values []bool) error
+}
+
 const (
 	DialogTypeReadCoils DialogType = iota + 1
 	DialogTypeReadDiscreteInputs
@@ -91,386 +102,316 @@ var (
 	}
 )
 
-type DialogCallbacks struct {
-	readCoils              func(addr uint16, cnt int) ([]bool, error)
-	readDiscreteInputs     func(addr uint16, cnt int) ([]bool, error)
-	readHoldingRegisters   func(addr uint16, cnt int) ([]uint16, error)
-	readInputRegisters     func(addr uint16, cnt int) ([]uint16, error)
-	writeSingleCoil        func(addr uint16, value bool) error
-	writeSingleRegister    func(addr uint16, value uint16) error
-	writeMultipleRegisters func(addr uint16, values []uint16) error
-	writeMultipleCoils     func(addr uint16, values []bool) error
-}
+type DialogController struct {
+	model DialogModel
 
-type Dialog struct {
-	callbacks  DialogCallbacks
-	dialogType DialogType
-
-	dialog   *walk.Dialog
-	errEdit  *walk.TextEdit
-	addrEdit *walk.TextEdit
-
+	dialog           *walk.Dialog
+	errEdit          *walk.TextEdit
+	addrEdit         *walk.TextEdit
 	hexAddrCheckBox  *walk.CheckBox
 	hexInputCheckBox *walk.CheckBox
-
-	binaryInputEdit *walk.TextEdit
-	inputEdit       *walk.TextEdit
-
-	cntEdit    *walk.TextEdit
-	resultEdit *walk.TextEdit
-
-	mainButtonFunction map[DialogType]func()
+	binaryInputEdit  *walk.TextEdit
+	inputEdit        *walk.TextEdit
+	cntEdit          *walk.TextEdit
+	resultEdit       *walk.TextEdit
 }
 
-func NewDialog(
-	callbacks DialogCallbacks,
-	dialogType DialogType,
-) *Dialog {
+func (c *DialogController) Close() {
+	c.dialog.Close(0)
+}
 
-	d := &Dialog{
-		callbacks:  callbacks,
-		dialogType: dialogType,
+func (c *DialogController) ReadCoils() {
+	addr, cnt, ok := c.addrCnt()
+	if !ok {
+		return
 	}
 
-	d.mainButtonFunction = map[DialogType]func(){
-		DialogTypeReadCoils:              d.readCoils,
-		DialogTypeReadDiscreteInputs:     d.readDiscreteInputs,
-		DialogTypeReadHoldingRegisters:   d.readHoldingRegisters,
-		DialogTypeReadInputRegisters:     d.readInputRegisters,
-		DialogTypeWriteSingleCoil:        d.writeSingleCoil,
-		DialogTypeWriteSingleRegister:    d.writeSingleRegister,
-		DialogTypeWriteMultipleRegisters: d.writeMultipleRegisters,
-		DialogTypeWriteMultipleCoils:     d.writeMultipleCoils,
+	coils, err := c.model.ReadCoils(addr, cnt)
+	if err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
 	}
 
-	return d
+	c.resultBools(coils)
+	c.clearError()
 }
 
-func (g *Dialog) Close() {
-	g.dialog.Close(0)
+func (c *DialogController) ReadDiscreteInputs() {
+	addr, cnt, ok := c.addrCnt()
+	if !ok {
+		return
+	}
+
+	inputs, err := c.model.ReadDiscreteInputs(addr, int(cnt))
+	if err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultBools(inputs)
+	c.clearError()
 }
 
-func (g *Dialog) readCoils() {
+func (c *DialogController) ReadHoldingRegisters() {
+	addr, cnt, ok := c.addrCnt()
+	if !ok {
+		return
+	}
+
+	registers, err := c.model.ReadHoldingRegisters(addr, int(cnt))
+	if err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultUints(registers)
+	c.clearError()
+}
+
+func (c *DialogController) ReadInputRegisters() {
+	addr, cnt, ok := c.addrCnt()
+	if !ok {
+		return
+	}
+
+	registers, err := c.model.ReadInputRegisters(addr, int(cnt))
+	if err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultUints(registers)
+	c.clearError()
+}
+
+func (c *DialogController) WriteSingleCoil() {
+	addr, ok := c.addr()
+	if !ok {
+		return
+	}
+
+	input, ok := c.inputBool()
+	if !ok {
+		return
+	}
+
+	if err := c.model.WriteSingleCoil(addr, input); err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultSuccess()
+	c.clearError()
+}
+
+func (c *DialogController) WriteSingleRegister() {
+	addr, ok := c.addr()
+	if !ok {
+		return
+	}
+
+	input, ok := c.inputUint()
+	if !ok {
+		return
+	}
+
+	if err := c.model.WriteSingleRegister(addr, input); err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultSuccess()
+	c.clearError()
+}
+
+func (c *DialogController) WriteMultipleRegisters() {
+	addr, ok := c.addr()
+	if !ok {
+		return
+	}
+
+	inputs, ok := c.inputUints()
+	if !ok {
+		return
+	}
+
+	if err := c.model.WriteMultipleRegisters(addr, inputs); err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultSuccess()
+	c.clearError()
+}
+
+func (c *DialogController) WriteMultipleCoils() {
+	addr, ok := c.addr()
+	if !ok {
+		return
+	}
+
+	inputs, ok := c.inputBools()
+	if !ok {
+		return
+	}
+
+	if err := c.model.WriteMultipleCoils(addr, inputs); err != nil {
+		c.setError(err)
+		c.resultFail()
+		return
+	}
+
+	c.resultSuccess()
+	c.clearError()
+}
+
+func (c *DialogController) addr() (uint16, bool) {
 	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
+	if c.hexAddrCheckBox.Checked() {
 		addrParser = parseHex
 	}
 
-	addr, err := addrParser(g.addrEdit.Text())
+	addr, err := addrParser(c.addrEdit.Text())
 	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+		c.setError(err)
+		return 0, false
 	}
 
-	cnt, err := parseInt(g.cntEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	coils, err := g.callbacks.readCoils(addr, int(cnt))
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText(writeBools(coils))
+	c.clearError()
+	return addr, true
 }
 
-func (g *Dialog) readDiscreteInputs() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
-	}
-
-	addr, err := addrParser(g.addrEdit.Text())
+func (c *DialogController) cnt() (int, bool) {
+	cnt, err := parseInt(c.cntEdit.Text())
 	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+		c.setError(err)
+		return 0, false
 	}
 
-	cnt, err := parseInt(g.cntEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	inputs, err := g.callbacks.readDiscreteInputs(addr, int(cnt))
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText(writeBools(inputs))
+	c.clearError()
+	return cnt, true
 }
 
-func (g *Dialog) readHoldingRegisters() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
-	}
-
-	addr, err := addrParser(g.addrEdit.Text())
+func (c *DialogController) inputBool() (bool, bool) {
+	parsed, err := parseBool(c.inputEdit.Text())
 	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+		c.setError(err)
+		return false, false
 	}
 
-	cnt, err := parseInt(g.cntEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	registers, err := g.callbacks.readHoldingRegisters(addr, int(cnt))
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText(writeUints(registers))
+	c.clearError()
+	return parsed, true
 }
 
-func (g *Dialog) readInputRegisters() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
+func (c *DialogController) inputBools() ([]bool, bool) {
+	cnt, ok := c.cnt()
+	if !ok {
+		return nil, false
 	}
 
-	addr, err := addrParser(g.addrEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+	input := make([]bool, 0, cnt)
+	for _, chunk := range strings.Split(c.inputEdit.Text(), ", ") {
+		parsed, err := parseBool(chunk)
+
+		if err != nil {
+			c.setError(err)
+			return nil, false
+		}
+
+		input = append(input, parsed)
 	}
 
-	cnt, err := parseInt(g.cntEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	registers, err := g.callbacks.readInputRegisters(addr, int(cnt))
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText(writeUints(registers))
+	c.clearError()
+	return input, true
 }
 
-func (g *Dialog) writeSingleCoil() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
-	}
-
-	addr, err := addrParser(g.addrEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	input, err := parseBool(g.binaryInputEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	if err := g.callbacks.writeSingleCoil(addr, input); err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText("Success")
-}
-
-func (g *Dialog) writeSingleRegister() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
-	}
-
-	addr, err := addrParser(g.addrEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
+func (c *DialogController) inputUint() (uint16, bool) {
 	inputParser := parseUint16
-	if g.hexInputCheckBox.Checked() {
+	if c.hexInputCheckBox.Checked() {
 		inputParser = parseHex
 	}
 
-	input, err := inputParser(g.inputEdit.Text())
+	parsed, err := inputParser(c.inputEdit.Text())
 	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+		c.setError(err)
+		return 0, false
 	}
 
-	if err := g.callbacks.writeSingleRegister(addr, input); err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText("Success")
+	c.clearError()
+	return parsed, true
 }
 
-func (g *Dialog) writeMultipleRegisters() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
-	}
-
-	addr, err := addrParser(g.addrEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	cnt, err := parseInt(g.cntEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+func (c *DialogController) inputUints() ([]uint16, bool) {
+	cnt, ok := c.cnt()
+	if !ok {
+		return nil, false
 	}
 
 	inputParser := parseUint16
-	if g.hexInputCheckBox.Checked() {
+	if c.hexInputCheckBox.Checked() {
 		inputParser = parseHex
 	}
 
 	input := make([]uint16, 0, cnt)
-	for _, chunk := range strings.Split(g.inputEdit.Text(), ", ") {
+	for _, chunk := range strings.Split(c.inputEdit.Text(), ", ") {
 		parsed, err := inputParser(chunk)
 
 		if err != nil {
-			g.errEdit.SetText(err.Error())
-			return
+			c.setError(err)
+			return nil, false
 		}
 
 		input = append(input, parsed)
 	}
 
-	if err := g.callbacks.writeMultipleRegisters(addr, input); err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText("Success")
+	c.clearError()
+	return input, true
 }
 
-func (g *Dialog) writeMultipleCoils() {
-	addrParser := parseUint16
-	if g.hexAddrCheckBox.Checked() {
-		addrParser = parseHex
+func (c *DialogController) addrCnt() (uint16, int, bool) {
+	addr, ok := c.addr()
+	if !ok {
+		return 0, 0, false
 	}
 
-	addr, err := addrParser(g.addrEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
+	cnt, ok := c.cnt()
+	if !ok {
+		return 0, 0, false
 	}
 
-	cnt, err := parseInt(g.cntEdit.Text())
-	if err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	input := make([]bool, 0, cnt)
-	for _, chunk := range strings.Split(g.inputEdit.Text(), ", ") {
-		parsed, err := parseBool(chunk)
-
-		if err != nil {
-			g.errEdit.SetText(err.Error())
-			return
-		}
-
-		input = append(input, parsed)
-	}
-
-	if err := g.callbacks.writeMultipleCoils(addr, input); err != nil {
-		g.errEdit.SetText(err.Error())
-		return
-	}
-
-	g.resultEdit.SetText("Success")
+	c.clearError()
+	return addr, cnt, true
 }
 
-func (g *Dialog) Render() d.Dialog {
-	return d.Dialog{
-		AssignTo: &g.dialog,
-		Title:    dialogTitles[g.dialogType],
-		MinSize:  d.Size{Width: 250, Height: 200},
-		Layout:   d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-		Children: func() []d.Widget {
+func (c *DialogController) resultSuccess() {
+	c.resultEdit.SetText("Success")
+}
 
-			widgets := make([]d.Widget, 0)
+func (c *DialogController) resultFail() {
+	c.resultEdit.SetText("Fail")
+}
 
-			widgets = append(widgets, d.GroupBox{
-				Title:  "Starting address (hex or decimal)",
-				Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-				Children: []d.Widget{
-					d.TextEdit{AssignTo: &g.addrEdit, Text: "0x01"},
-					d.CheckBox{AssignTo: &g.hexAddrCheckBox, Checked: true, Text: "Hexadecimal number"},
-				},
-			})
+func (c *DialogController) resultUints(values []uint16) {
+	c.resultEdit.SetText(fmt.Sprintf("%v", values))
+}
 
-			if renderAmount[g.dialogType] {
-				widgets = append(widgets, d.GroupBox{
-					Title:  "Amount (decimal)",
-					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-					Children: []d.Widget{
-						d.TextEdit{AssignTo: &g.cntEdit, Text: inputDefaultText[g.dialogType]},
-					},
-				})
-			}
+func (c *DialogController) resultBools(values []bool) {
+	c.resultEdit.SetText(fmt.Sprintf("%v", values))
+}
 
-			if renderBinaryInput[g.dialogType] {
-				widgets = append(widgets, d.GroupBox{
-					Title:  "Input (example: 'true, false')",
-					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-					Children: []d.Widget{
-						d.TextEdit{AssignTo: &g.binaryInputEdit, Text: inputDefaultText[g.dialogType]},
-					},
-				})
-			}
+func (c *DialogController) setError(err error) {
+	c.errEdit.SetText(err.Error())
+}
 
-			if renderInput[g.dialogType] {
-				widgets = append(widgets, d.GroupBox{
-					Title:  "Input (example: '213, 45' or '0x15, 0x1')",
-					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-					Children: []d.Widget{
-						d.TextEdit{AssignTo: &g.inputEdit, Text: inputDefaultText[g.dialogType]},
-						d.CheckBox{AssignTo: &g.hexInputCheckBox, Checked: true, Text: "Hexadecimal number"},
-					},
-				})
-			}
-
-			widgets = append(widgets, d.GroupBox{
-				Title:  "Result",
-				Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-				Children: []d.Widget{
-					d.TextEdit{AssignTo: &g.resultEdit, Enabled: false},
-				},
-			})
-
-			widgets = append(widgets, d.HSplitter{
-				Children: []d.Widget{
-					d.PushButton{Text: mainButtonCaption[g.dialogType], OnClicked: g.mainButtonFunction[g.dialogType]},
-					d.PushButton{Text: "Cancel", OnClicked: g.Close},
-				},
-			})
-
-			widgets = append(widgets, d.TextEdit{
-				AssignTo:  &g.errEdit,
-				TextColor: walk.RGB(255, 0, 0),
-				ReadOnly:  true,
-				Text:      "",
-			})
-
-			return widgets
-		}(),
-	}
+func (c *DialogController) clearError() {
+	c.errEdit.SetText("")
 }
 
 func parseHex(input string) (uint16, error) {
@@ -523,10 +464,96 @@ func parseBool(input string) (bool, error) {
 	return false, fmt.Errorf("could not parse bool")
 }
 
-func writeBools(bools []bool) string {
-	return fmt.Sprintf("%v", bools)
-}
+func DialogView(window *walk.MainWindow, model DialogModel, dialogType DialogType) func() {
+	controller := &DialogController{
+		model: model,
+	}
 
-func writeUints(uints []uint16) string {
-	return fmt.Sprintf("%v", uints)
+	mainButtonFunction := map[DialogType]func(){
+		DialogTypeReadCoils:              controller.ReadCoils,
+		DialogTypeReadDiscreteInputs:     controller.ReadDiscreteInputs,
+		DialogTypeReadHoldingRegisters:   controller.ReadHoldingRegisters,
+		DialogTypeReadInputRegisters:     controller.ReadInputRegisters,
+		DialogTypeWriteSingleCoil:        controller.WriteSingleCoil,
+		DialogTypeWriteSingleRegister:    controller.WriteSingleRegister,
+		DialogTypeWriteMultipleRegisters: controller.WriteMultipleRegisters,
+		DialogTypeWriteMultipleCoils:     controller.WriteMultipleCoils,
+	}
+
+	return func() {
+		d.Dialog{
+			AssignTo: &controller.dialog,
+			Title:    dialogTitles[dialogType],
+			MinSize:  d.Size{Width: 250, Height: 200},
+			Layout:   d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
+			Children: func() []d.Widget {
+
+				widgets := make([]d.Widget, 0)
+
+				widgets = append(widgets, d.GroupBox{
+					Title:  "Starting address (hex or decimal)",
+					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
+					Children: []d.Widget{
+						d.TextEdit{AssignTo: &controller.addrEdit, Text: "0x01"},
+						d.CheckBox{AssignTo: &controller.hexAddrCheckBox, Checked: true, Text: "Hexadecimal number"},
+					},
+				})
+
+				if renderAmount[dialogType] {
+					widgets = append(widgets, d.GroupBox{
+						Title:  "Amount (decimal)",
+						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
+						Children: []d.Widget{
+							d.TextEdit{AssignTo: &controller.cntEdit, Text: inputDefaultText[dialogType]},
+						},
+					})
+				}
+
+				if renderBinaryInput[dialogType] {
+					widgets = append(widgets, d.GroupBox{
+						Title:  "Input (example: 'true, false')",
+						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
+						Children: []d.Widget{
+							d.TextEdit{AssignTo: &controller.binaryInputEdit, Text: inputDefaultText[dialogType]},
+						},
+					})
+				}
+
+				if renderInput[dialogType] {
+					widgets = append(widgets, d.GroupBox{
+						Title:  "Input (example: '213, 45' or '0x15, 0x1')",
+						Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
+						Children: []d.Widget{
+							d.TextEdit{AssignTo: &controller.inputEdit, Text: inputDefaultText[dialogType]},
+							d.CheckBox{AssignTo: &controller.hexInputCheckBox, Checked: true, Text: "Hexadecimal number"},
+						},
+					})
+				}
+
+				widgets = append(widgets, d.GroupBox{
+					Title:  "Result",
+					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
+					Children: []d.Widget{
+						d.TextEdit{AssignTo: &controller.resultEdit, Enabled: false},
+					},
+				})
+
+				widgets = append(widgets, d.HSplitter{
+					Children: []d.Widget{
+						d.PushButton{Text: mainButtonCaption[dialogType], OnClicked: mainButtonFunction[dialogType]},
+						d.PushButton{Text: "Cancel", OnClicked: controller.Close},
+					},
+				})
+
+				widgets = append(widgets, d.TextEdit{
+					AssignTo:  &controller.errEdit,
+					TextColor: walk.RGB(255, 0, 0),
+					ReadOnly:  true,
+					Text:      "",
+				})
+
+				return widgets
+			}(),
+		}.Run(window)
+	}
 }
