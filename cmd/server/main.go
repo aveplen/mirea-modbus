@@ -29,7 +29,9 @@ func main() {
 		fallback,
 	)
 
-	viewModel := NewMainViewModel(serverManager)
+	activitySimulator := NewActivitySimulatorImpl(service, seed)
+
+	viewModel := NewMainViewModel(serverManager, activitySimulator)
 	view := NewView(seed, viewModel)
 
 	service.SubscribeToCoilChanges(view.UpdateCoils)

@@ -7,13 +7,23 @@ type ServerManagerInterface interface {
 	StopServer() error
 }
 
-type MainViewModel struct {
-	serverManager ServerManagerInterface
+type ActivitySimulator interface {
+	StartSimulation()
+	StopSimulation()
 }
 
-func NewMainViewModel(serverManager ServerManagerInterface) *MainViewModel {
+type MainViewModel struct {
+	serverManager     ServerManagerInterface
+	activitySimulator ActivitySimulator
+}
+
+func NewMainViewModel(
+	serverManager ServerManagerInterface,
+	activitySimulator ActivitySimulator,
+) *MainViewModel {
 	return &MainViewModel{
-		serverManager: serverManager,
+		serverManager:     serverManager,
+		activitySimulator: activitySimulator,
 	}
 }
 
@@ -35,4 +45,12 @@ func (m *MainViewModel) StopServer() bool {
 
 	log.Println("Server stopped successfuly")
 	return true
+}
+
+func (m *MainViewModel) StartSimulation() {
+	m.activitySimulator.StartSimulation()
+}
+
+func (m *MainViewModel) StopSimulation() {
+	m.activitySimulator.StopSimulation()
 }

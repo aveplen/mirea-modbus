@@ -106,6 +106,9 @@ func (m *RegistersModel) Value(row, col int) interface{} {
 type MainModel interface {
 	StartServer() bool
 	StopServer() bool
+
+	StartSimulation()
+	StopSimulation()
 }
 
 type ViewController struct {
@@ -117,12 +120,14 @@ type ViewController struct {
 	inputRegistersModel   *RegistersModel
 	holdingRegistersModel *RegistersModel
 
-	discreteInputsView   *walk.TableView
-	coilsView            *walk.TableView
-	inputRegisterView    *walk.TableView
-	holdingRegistersView *walk.TableView
-	startServerButton    *walk.PushButton
-	stopServerButton     *walk.PushButton
+	discreteInputsView    *walk.TableView
+	coilsView             *walk.TableView
+	inputRegisterView     *walk.TableView
+	holdingRegistersView  *walk.TableView
+	startServerButton     *walk.PushButton
+	stopServerButton      *walk.PushButton
+	startSimulationButton *walk.PushButton
+	stopSimulationButton  *walk.PushButton
 
 	AppendLog func(value string)
 }
@@ -135,8 +140,8 @@ func (v *ViewController) UpdateDiscreteInputs(change CoilChange) {
 		}
 	}
 
-	v.coilsModel.PublishRowsReset()
-	v.coilsView.Invalidate()
+	v.discreteInputsModel.PublishRowsReset()
+	v.discreteInputsView.Invalidate()
 }
 
 func (v *ViewController) UpdateCoils(change CoilChange) {
@@ -189,8 +194,22 @@ func (v *ViewController) StopServer() {
 	}
 }
 
-func NewView(seed Dump, model MainModel) ViewController {
-	view := ViewController{
+func (v *ViewController) StartSimulation() {
+	v.model.StartSimulation()
+	v.startSimulationButton.Button.SetEnabled(false)
+	v.stopSimulationButton.Button.SetEnabled(true)
+}
+
+func (v *ViewController) StopSimulation() {
+	v.model.StopSimulation()
+	v.startSimulationButton.Button.SetEnabled(true)
+	v.stopSimulationButton.Button.SetEnabled(false)
+}
+
+func NewView(seed Dump, model MainModel) *ViewController {
+	view := &ViewController{
+		model: model,
+
 		discreteInputsModel:   NewCoilsModel(seed.DiscreteInputs),
 		coilsModel:            NewCoilsModel(seed.Coils),
 		inputRegistersModel:   NewRegistersModel(seed.InputRegisters),
@@ -198,12 +217,15 @@ func NewView(seed Dump, model MainModel) ViewController {
 	}
 
 	lv := NewLogView()
+	view.AppendLog = lv.Append
+
 	view.MainWindow = &d.MainWindow{
 		Title:  "Modbus server (slave)",
-		Size:   d.Size{Width: 550, Height: 900},
+		Size:   d.Size{Width: 1200, Height: 1000},
 		Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
 		Children: []d.Widget{
-			d.HSplitter{
+			d.Composite{
+				Layout: d.HBox{},
 				Children: []d.Widget{
 					d.PushButton{
 						AssignTo:  &view.startServerButton,
@@ -217,75 +239,102 @@ func NewView(seed Dump, model MainModel) ViewController {
 						OnClicked: view.StopServer,
 						Enabled:   false,
 					},
+
+					d.PushButton{
+						AssignTo:  &view.startSimulationButton,
+						Text:      "Start simulation",
+						OnClicked: view.StartSimulation,
+					},
+
+					d.PushButton{
+						AssignTo:  &view.stopSimulationButton,
+						Text:      "Stop simulation",
+						OnClicked: view.StopSimulation,
+						Enabled:   false,
+					},
 				},
 			},
 
-			d.Label{Text: "Coils:"},
-			d.TableView{
-				AssignTo:         &view.coilsView,
-				Model:            view.coilsModel,
-				AlternatingRowBG: true,
-				ColumnsOrderable: true,
-				MaxSize:          d.Size{Height: 140},
-				Columns: []d.TableViewColumn{
-					{Title: "#", FormatFunc: numberDecimalFormat},
-					{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
-					{Title: "Address (hex)", FormatFunc: numberHexFormat},
-					{Title: "Coil", FormatFunc: boolFormat},
+			d.Composite{
+				Layout: d.HBox{},
+				Children: []d.Widget{
+					d.Composite{
+						Layout:  d.VBox{},
+						MinSize: d.Size{Width: 40},
+						Children: []d.Widget{
+							d.Label{Text: "Discrete inputs:"},
+							d.TableView{
+								AssignTo:         &view.discreteInputsView,
+								Model:            view.discreteInputsModel,
+								AlternatingRowBG: true,
+								ColumnsOrderable: true,
+								Columns: []d.TableViewColumn{
+									{Title: "#", FormatFunc: numberDecimalFormat},
+									{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
+									{Title: "Address (hex)", FormatFunc: numberHexFormat},
+									{Title: "Coil", FormatFunc: boolFormat},
+								},
+							},
+
+							d.Label{Text: "Coils:"},
+							d.TableView{
+								AssignTo:         &view.coilsView,
+								Model:            view.coilsModel,
+								AlternatingRowBG: true,
+								ColumnsOrderable: true,
+								Columns: []d.TableViewColumn{
+									{Title: "#", FormatFunc: numberDecimalFormat},
+									{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
+									{Title: "Address (hex)", FormatFunc: numberHexFormat},
+									{Title: "Coil", FormatFunc: boolFormat},
+								},
+							},
+
+							d.Label{Text: "Input registers:"},
+							d.TableView{
+								AssignTo:         &view.inputRegisterView,
+								Model:            view.inputRegistersModel,
+								AlternatingRowBG: true,
+								ColumnsOrderable: true,
+								Columns: []d.TableViewColumn{
+									{Title: "#", FormatFunc: numberDecimalFormat},
+									{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
+									{Title: "Address (hex)", FormatFunc: numberHexFormat},
+									{Title: "Value (dec)", FormatFunc: numberDecimalFormat},
+									{Title: "Value (hex)", FormatFunc: numberHexFormat},
+								},
+							},
+
+							d.Label{Text: "Holding registers:"},
+							d.TableView{
+								AssignTo:         &view.holdingRegistersView,
+								Model:            view.holdingRegistersModel,
+								AlternatingRowBG: true,
+								ColumnsOrderable: true,
+								Columns: []d.TableViewColumn{
+									{Title: "#", FormatFunc: numberDecimalFormat},
+									{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
+									{Title: "Address (hex)", FormatFunc: numberHexFormat},
+									{Title: "Value (dec)", FormatFunc: numberDecimalFormat},
+									{Title: "Value (hex)", FormatFunc: numberHexFormat},
+								},
+							},
+						},
+					},
+
+					d.Composite{
+						Layout: d.VBox{},
+						Children: []d.Widget{
+							d.Label{Text: "Log view:"},
+							lv.TextEdit,
+						},
+					},
 				},
 			},
-
-			d.Label{Text: "Discrete inputs:"},
-			d.TableView{
-				AssignTo:         &view.discreteInputsView,
-				Model:            view.discreteInputsModel,
-				AlternatingRowBG: true,
-				ColumnsOrderable: true,
-				MaxSize:          d.Size{Height: 140},
-				Columns: []d.TableViewColumn{
-					{Title: "#", FormatFunc: numberDecimalFormat},
-					{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
-					{Title: "Address (hex)", FormatFunc: numberHexFormat},
-					{Title: "Coil", FormatFunc: boolFormat},
-				},
-			},
-
-			d.Label{Text: "Input registers:"},
-			d.TableView{
-				AssignTo:         &view.inputRegisterView,
-				Model:            view.inputRegistersModel,
-				AlternatingRowBG: true,
-				ColumnsOrderable: true,
-				MaxSize:          d.Size{Height: 180},
-				Columns: []d.TableViewColumn{
-					{Title: "#", FormatFunc: numberDecimalFormat},
-					{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
-					{Title: "Address (hex)", FormatFunc: numberHexFormat},
-					{Title: "Value (dec)", FormatFunc: numberDecimalFormat},
-					{Title: "Value (hex)", FormatFunc: numberHexFormat},
-				},
-			},
-
-			d.Label{Text: "Holding registers:"},
-			d.TableView{
-				AssignTo:         &view.holdingRegistersView,
-				Model:            view.holdingRegistersModel,
-				AlternatingRowBG: true,
-				ColumnsOrderable: true,
-				MaxSize:          d.Size{Height: 140},
-				Columns: []d.TableViewColumn{
-					{Title: "#", FormatFunc: numberDecimalFormat},
-					{Title: "Address (dec)", FormatFunc: numberDecimalFormat},
-					{Title: "Address (hex)", FormatFunc: numberHexFormat},
-					{Title: "Value (dec)", FormatFunc: numberDecimalFormat},
-					{Title: "Value (hex)", FormatFunc: numberHexFormat},
-				},
-			},
-
-			lv.TextEdit,
 		},
 	}
 
+	fmt.Println(view)
 	return view
 }
 

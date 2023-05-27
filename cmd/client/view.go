@@ -252,21 +252,11 @@ func MainView(model MainModel) func() {
 							Children: []d.Widget{
 								d.VSplitter{
 									Children: []d.Widget{
-										d.Label{
-											Text: "Transport:",
-										},
-
+										d.Label{Text: "Transport:"},
 										d.VSpacer{},
-
-										d.Label{
-											Text: "Address:",
-										},
-
+										d.Label{Text: "Address:"},
 										d.VSpacer{},
-
-										d.Label{
-											Text: "Port:",
-										},
+										d.Label{Text: "Port:"},
 									},
 								},
 
@@ -274,20 +264,9 @@ func MainView(model MainModel) func() {
 
 								d.VSplitter{
 									Children: []d.Widget{
-										d.TextEdit{
-											AssignTo: &controller.transportEdit,
-											Text:     "tcp",
-										},
-
-										d.TextEdit{
-											AssignTo: &controller.addressEdit,
-											Text:     "localhost",
-										},
-
-										d.TextEdit{
-											AssignTo: &controller.portEdit,
-											Text:     "5502",
-										},
+										d.TextEdit{AssignTo: &controller.transportEdit, Text: "tcp"},
+										d.TextEdit{AssignTo: &controller.addressEdit, Text: "localhost"},
+										d.TextEdit{AssignTo: &controller.portEdit, Text: "5502"},
 									},
 								},
 							},
@@ -380,10 +359,7 @@ func MainView(model MainModel) func() {
 					},
 				},
 
-				d.Label{
-					Text: "Errors:",
-				},
-
+				d.Label{Text: "Errors:"},
 				d.TextEdit{
 					AssignTo:  &controller.errEdit,
 					MinSize:   d.Size{Width: 1, Height: 50},
