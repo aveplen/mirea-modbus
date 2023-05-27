@@ -5,13 +5,11 @@ import (
 )
 
 type ModbusHandler struct {
-	logger  *Logger
 	service *ModbusService
 }
 
-func NewModbusHandler(logger *Logger, service *ModbusService) *ModbusHandler {
+func NewModbusHandler(service *ModbusService) *ModbusHandler {
 	return &ModbusHandler{
-		logger:  logger,
 		service: service,
 	}
 }
@@ -35,12 +33,12 @@ func (h *ModbusHandler) ReadDiscreteInputs0x02(addr uint16, cnt int) ([]bool, er
 	result := make([]bool, 0, cnt)
 
 	for a := addr; a < addr+uint16(cnt); a++ {
-		reg, err := h.service.GetInputRegister(a)
+		dis, err := h.service.GetDiscreteInputs(a)
 		if err != nil {
 			return nil, fmt.Errorf("get input register at address %d: %w", a, err)
 		}
 
-		result = append(result, reg > 0)
+		result = append(result, dis)
 	}
 
 	return result, nil
@@ -50,7 +48,7 @@ func (h *ModbusHandler) ReadHoldingRegisters0x03(addr uint16, cnt int) ([]uint16
 	result := make([]uint16, 0, cnt)
 
 	for a := addr; a < addr+uint16(cnt); a++ {
-		reg, err := h.service.GetRegister(a)
+		reg, err := h.service.GetHoldingRegister(a)
 		if err != nil {
 			return nil, fmt.Errorf("get register at address %d: %w", a, err)
 		}
@@ -85,7 +83,7 @@ func (h *ModbusHandler) WriteSingleCoil0x05(addr uint16, value bool) error {
 }
 
 func (h *ModbusHandler) WriteSingleRegister0x06(addr uint16, value uint16) error {
-	if err := h.service.SetRegister(addr, value); err != nil {
+	if err := h.service.SetHoldingRegister(addr, value); err != nil {
 		return fmt.Errorf("set register at address %d: %w", addr, err)
 	}
 
@@ -96,7 +94,7 @@ func (h *ModbusHandler) WriteMultipleRegisters0x10(addr uint16, values []uint16)
 	for i, value := range values {
 		a := addr + uint16(i)
 
-		if err := h.service.SetRegister(a, value); err != nil {
+		if err := h.service.SetHoldingRegister(a, value); err != nil {
 			return fmt.Errorf("set register at address %d: %w", a, err)
 		}
 	}

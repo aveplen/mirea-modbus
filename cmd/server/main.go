@@ -2,39 +2,25 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/simonvetter/modbus"
 )
 
 func main() {
-	seed := Dump{
-		Coils: []Coil{
-			{
-				addr:  0x123,
-				value: true,
-			},
-			{
-				addr:  0x567,
-				value: false,
-			},
-		},
+	seed, err := ReadSeed("seed.json")
+	if err != nil {
+		panic(fmt.Errorf("couls not read seed for modbus handler: %w", err))
 	}
 
-	logger := NewLogger(
-		"SERVER",
-		func() string { return time.Now().String() },
-		100,
-		10,
-	)
+	service := NewModbusService(seed)
+	fallback := NewFallbackMiddleware(
+		NewValidationMiddleware(
+			NewAdapterHandler(
+				NewModbusHandler(service))))
 
-	service := NewModbusService(logger, seed)
-	handler := NewModbusHandler(logger, service)
-	adapter := NewAdapterHandler(logger, handler)
-	validation := NewValidationMiddleware(logger, adapter)
-	fallback := NewFallbackMiddleware(logger, validation)
-
-	server, err := modbus.NewServer(
+	serverManager := NewServerManager(
 		&modbus.ServerConfiguration{
 			URL:        "tcp://localhost:5502",
 			Timeout:    30 * time.Second,
@@ -43,42 +29,14 @@ func main() {
 		fallback,
 	)
 
-	if err != nil {
-		panic(fmt.Errorf("failed to create server: %w", err))
-	}
+	viewModel := NewMainViewModel(serverManager)
+	view := NewView(seed, viewModel)
 
-	startServer := func() bool {
-		if err := server.Start(); err != nil {
-			panic(fmt.Errorf("failed to start server: %w", err))
-		}
-		fmt.Println("server started")
-		return true
-	}
-
-	stopServer := func() bool {
-		if err := server.Stop(); err != nil {
-			panic(fmt.Errorf("failed to stop server: %w", err))
-		}
-		fmt.Println("server stopped")
-		return true
-	}
-
-	view := NewView(seed, startServer, stopServer)
-
-	service.SubscribeToCoilChanges(func(change CoilChange) {
-		fmt.Printf("coil change: %v\n", change)
-		view.CoilsUpdateCallback(change)
-	})
-
-	service.SubscribeToRegisterChanges(func(change RegisterChange) {
-		fmt.Printf("register change: %v\n", change)
-		view.RegistersRenderCallback(change)
-	})
-
-	service.SubscribeToInputRegisterChanges(func(change RegisterChange) {
-		fmt.Printf("input regisiter chnge: %v", change)
-		view.InputRegistersRenderCallback(change)
-	})
+	service.SubscribeToCoilChanges(view.UpdateCoils)
+	service.SubscribeToDiscreteInputChages(view.UpdateDiscreteInputs)
+	service.SubscribeToHoldingRegisterChanges(view.UpdateHoldingRegisters)
+	service.SubscribeToInputRegisterChanges(view.UpdateInputRegisters)
+	log.SetOutput(&LogWriter{append: view.AppendLog})
 
 	view.MainWindow.Run()
 }

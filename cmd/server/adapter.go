@@ -2,22 +2,18 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/simonvetter/modbus"
 )
 
 type AdapterHandler struct {
-	logger  *Logger
 	handler *ModbusHandler
 }
 
-func NewAdapterHandler(
-	logger *Logger,
-	handler *ModbusHandler,
-) *AdapterHandler {
+func NewAdapterHandler(handler *ModbusHandler) *AdapterHandler {
 
 	adapter := &AdapterHandler{
-		logger:  logger,
 		handler: handler,
 	}
 
@@ -30,7 +26,7 @@ func NewAdapterHandler(
 // - err:	either nil if no error occurred, a modbus error
 func (h *AdapterHandler) HandleCoils(req *modbus.CoilsRequest) ([]bool, error) {
 	if req.IsWrite && req.Quantity == 1 {
-		h.logger.Debugf(
+		log.Printf(
 			"Function 0x05 (write single coil) accessed with Addr: %d, Arguments: %v",
 			req.Addr, req.Args,
 		)
@@ -43,7 +39,7 @@ func (h *AdapterHandler) HandleCoils(req *modbus.CoilsRequest) ([]bool, error) {
 	}
 
 	if req.IsWrite {
-		h.logger.Debugf(
+		log.Printf(
 			"Function 0x0F (write multiple coils) accessed with Addr: %d, Quantity: %d, Arguments: %v",
 			req.Addr, req.Quantity, req.Args,
 		)
@@ -55,7 +51,7 @@ func (h *AdapterHandler) HandleCoils(req *modbus.CoilsRequest) ([]bool, error) {
 		return nil, nil
 	}
 
-	h.logger.Debugf(
+	log.Printf(
 		"Funtion 0x01 (read coils) accessed with Addr: %d, Quantity: %d",
 		req.Addr, req.Quantity,
 	)
@@ -86,7 +82,7 @@ func (h *AdapterHandler) HandleDiscreteInputs(req *modbus.DiscreteInputsRequest)
 // - err:	either nil if no error occurred, a modbus error
 func (h *AdapterHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersRequest) ([]uint16, error) {
 	if req.IsWrite && req.Quantity == 1 {
-		h.logger.Debugf(
+		log.Printf(
 			"Function 0x06 (write single register) accessed with Addr: %d, Quantity: %d, Arguments: %v",
 			req.Addr, req.Quantity, req.Args,
 		)
@@ -99,7 +95,7 @@ func (h *AdapterHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersRequ
 	}
 
 	if req.IsWrite {
-		h.logger.Debugf(
+		log.Printf(
 			"Function 0x10 (write mutliple registers) accessed with Addr: %d, Quantity: %d, Arguments: %v",
 			req.Addr, req.Quantity, req.Args,
 		)
@@ -111,7 +107,7 @@ func (h *AdapterHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersRequ
 		return nil, nil
 	}
 
-	h.logger.Debugf(
+	log.Printf(
 		"Function 0x03 (read holding registers) accessed with Addr: %d, Quantity: %d",
 		req.Addr, req.Quantity,
 	)
@@ -129,7 +125,7 @@ func (h *AdapterHandler) HandleHoldingRegisters(req *modbus.HoldingRegistersRequ
 // - res:	register values
 // - err:	either nil if no error occurred, a modbus error
 func (h *AdapterHandler) HandleInputRegisters(req *modbus.InputRegistersRequest) ([]uint16, error) {
-	h.logger.Debugf("Function 0x04 (read input registers) at Addr: %d with Quantity: %d", req.Addr, req.Quantity)
+	log.Printf("Function 0x04 (read input registers) at Addr: %d with Quantity: %d", req.Addr, req.Quantity)
 	regs, err := h.handler.ReadInputRegisters0x04(req.Addr, int(req.Quantity))
 	if err != nil {
 		return nil, fmt.Errorf("handle input registers: %w", err)

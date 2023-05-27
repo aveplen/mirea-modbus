@@ -3,27 +3,29 @@ package main
 import "errors"
 
 var (
-	ErrNoSuchCoil          = errors.New("no such coil")
-	ErrNoSuchRegister      = errors.New("no such register")
-	ErrNoSuchInputRegister = errors.New("no such input register")
+	ErrNoSuchCoil            = errors.New("no such coil")
+	ErrNoSuchDiscreteInput   = errors.New("no such discrete input")
+	ErrNoSuchHoldingRegister = errors.New("no such holding register")
+	ErrNoSuchInputRegister   = errors.New("no such input register")
 )
 
 type ModbusService struct {
-	logger *Logger
+	coils            []Coil
+	discreteInputs   []Coil
+	holdingRegisters []Register
+	inputRegisters   []Register
 
-	coils          []Coil
-	registers      []Register
-	inputRegisters []Register
-
-	coilSubs          []CoilSub
-	registerSubs      []RegisterSub
-	inputRegisterSubs []RegisterSub
+	coilSubs            []CoilSub
+	discreteInputSubs   []CoilSub
+	holdingRegisterSubs []RegisterSub
+	inputRegisterSubs   []RegisterSub
 }
 
 type Dump struct {
-	Coils          []Coil
-	Registers      []Register
-	InputRegisters []Register
+	Coils            []Coil
+	DiscreteInputs   []Coil
+	HoldingRegisters []Register
+	InputRegisters   []Register
 }
 
 type Coil struct {
@@ -52,17 +54,17 @@ type RegisterChange struct {
 
 type RegisterSub func(change RegisterChange)
 
-func NewModbusService(logger *Logger, seed Dump) *ModbusService {
+func NewModbusService(seed Dump) *ModbusService {
 	return &ModbusService{
-		logger: logger,
+		coils:            append(make([]Coil, 0, len(seed.Coils)), seed.Coils...),
+		discreteInputs:   append(make([]Coil, 0, len(seed.DiscreteInputs)), seed.DiscreteInputs...),
+		holdingRegisters: append(make([]Register, 0, len(seed.HoldingRegisters)), seed.HoldingRegisters...),
+		inputRegisters:   append(make([]Register, 0, len(seed.InputRegisters)), seed.InputRegisters...),
 
-		coils:          append(make([]Coil, 0, len(seed.Coils)), seed.Coils...),
-		registers:      append(make([]Register, 0, len(seed.Registers)), seed.Registers...),
-		inputRegisters: append(make([]Register, 0, len(seed.InputRegisters)), seed.InputRegisters...),
-
-		coilSubs:          make([]CoilSub, 0),
-		registerSubs:      make([]RegisterSub, 0),
-		inputRegisterSubs: make([]RegisterSub, 0),
+		coilSubs:            make([]CoilSub, 0),
+		discreteInputSubs:   make([]CoilSub, 0),
+		holdingRegisterSubs: make([]RegisterSub, 0),
+		inputRegisterSubs:   make([]RegisterSub, 0),
 	}
 }
 
@@ -99,19 +101,19 @@ func (s *ModbusService) SetCoil(addr uint16, value bool) error {
 	return nil
 }
 
-func (s *ModbusService) GetRegister(addr uint16) (uint16, error) {
-	for _, v := range s.registers {
+func (s *ModbusService) GetDiscreteInputs(addr uint16) (bool, error) {
+	for _, v := range s.discreteInputs {
 		if v.addr == addr {
 			return v.value, nil
 		}
 	}
-	return 0, ErrNoSuchCoil
+	return false, ErrNoSuchCoil
 }
 
-func (s *ModbusService) SetRegister(addr uint16, value uint16) error {
+func (s *ModbusService) SetDiscreteInputs(addr uint16, value bool) error {
 	var found bool
 	var index int
-	for i, v := range s.registers {
+	for i, v := range s.discreteInputs {
 		if v.addr == addr {
 			found = true
 			index = i
@@ -120,12 +122,45 @@ func (s *ModbusService) SetRegister(addr uint16, value uint16) error {
 	}
 
 	if !found {
-		return ErrNoSuchRegister
+		return ErrNoSuchCoil
 	}
 
-	prev := s.registers[index].value
-	s.registers[index].value = value
-	for _, sub := range s.registerSubs {
+	prev := s.coils[index].value
+	s.coils[index].value = value
+	for _, sub := range s.coilSubs {
+		sub(CoilChange{from: prev, to: value, addr: addr})
+	}
+
+	return nil
+}
+
+func (s *ModbusService) GetHoldingRegister(addr uint16) (uint16, error) {
+	for _, v := range s.holdingRegisters {
+		if v.addr == addr {
+			return v.value, nil
+		}
+	}
+	return 0, ErrNoSuchCoil
+}
+
+func (s *ModbusService) SetHoldingRegister(addr uint16, value uint16) error {
+	var found bool
+	var index int
+	for i, v := range s.holdingRegisters {
+		if v.addr == addr {
+			found = true
+			index = i
+			break
+		}
+	}
+
+	if !found {
+		return ErrNoSuchHoldingRegister
+	}
+
+	prev := s.holdingRegisters[index].value
+	s.holdingRegisters[index].value = value
+	for _, sub := range s.holdingRegisterSubs {
 		sub(RegisterChange{from: prev, to: value, addr: addr})
 	}
 
@@ -169,8 +204,12 @@ func (s *ModbusService) SubscribeToCoilChanges(sub CoilSub) {
 	s.coilSubs = append(s.coilSubs, sub)
 }
 
-func (s *ModbusService) SubscribeToRegisterChanges(sub RegisterSub) {
-	s.registerSubs = append(s.registerSubs, sub)
+func (s *ModbusService) SubscribeToDiscreteInputChages(sub CoilSub) {
+	s.discreteInputSubs = append(s.discreteInputSubs, sub)
+}
+
+func (s *ModbusService) SubscribeToHoldingRegisterChanges(sub RegisterSub) {
+	s.holdingRegisterSubs = append(s.holdingRegisterSubs, sub)
 }
 
 func (s *ModbusService) SubscribeToInputRegisterChanges(sub RegisterSub) {

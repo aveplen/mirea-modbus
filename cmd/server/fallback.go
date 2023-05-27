@@ -1,21 +1,18 @@
 package main
 
 import (
+	"log"
+
 	"github.com/simonvetter/modbus"
 )
 
 type FallbackMiddleware struct {
-	base   modbus.RequestHandler
-	logger *Logger
+	base modbus.RequestHandler
 }
 
-func NewFallbackMiddleware(
-	logger *Logger,
-	base modbus.RequestHandler,
-) *FallbackMiddleware {
+func NewFallbackMiddleware(base modbus.RequestHandler) *FallbackMiddleware {
 	middleware := &FallbackMiddleware{
-		logger: logger,
-		base:   base,
+		base: base,
 	}
 
 	return middleware
@@ -27,7 +24,7 @@ func (h *FallbackMiddleware) HandleCoils(req *modbus.CoilsRequest) ([]bool, erro
 		return coils, err
 	}
 
-	h.logger.Debugf("HandleCoils returned 'nil' instead of coils, falling back to []bool{false}")
+	log.Printf("HandleCoils returned 'nil' instead of coils, falling back to []bool{false}")
 	return []bool{false}, err
 }
 
@@ -37,7 +34,7 @@ func (h *FallbackMiddleware) HandleDiscreteInputs(req *modbus.DiscreteInputsRequ
 		return inputs, err
 	}
 
-	h.logger.Debugf("HandleDiscreteInputs returned 'nil' instead of inputs, falling back to []bool{false}")
+	log.Printf("HandleDiscreteInputs returned 'nil' instead of inputs, falling back to []bool{false}")
 	return []bool{false}, err
 }
 
@@ -47,7 +44,7 @@ func (h *FallbackMiddleware) HandleHoldingRegisters(req *modbus.HoldingRegisters
 		return registers, err
 	}
 
-	h.logger.Debugf("HandleHoldingRegisters returned 'nil' instead of registers, falling back to []uint16{0}")
+	log.Printf("HandleHoldingRegisters returned 'nil' instead of registers, falling back to []uint16{0}")
 	return []uint16{0}, err
 }
 
@@ -57,6 +54,6 @@ func (h *FallbackMiddleware) HandleInputRegisters(req *modbus.InputRegistersRequ
 		return registers, err
 	}
 
-	h.logger.Debugf("HandleInputRegisters returned 'nil' instead of registers, falling back to []uint16{0}")
+	log.Printf("HandleInputRegisters returned 'nil' instead of registers, falling back to []uint16{0}")
 	return []uint16{0}, err
 }
