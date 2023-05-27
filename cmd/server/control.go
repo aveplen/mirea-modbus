@@ -19,20 +19,20 @@ func NewMainViewModel(serverManager ServerManagerInterface) *MainViewModel {
 
 func (m *MainViewModel) StartServer() bool {
 	if err := m.serverManager.StartServer(); err != nil {
-		log.Printf("could not start server: %v", err)
+		log.Printf("Could not start server, reason: %v", err)
 		return false
 	}
 
-	log.Println("server started successfuly")
+	log.Println("Server started successfuly")
 	return true
 }
 
 func (m *MainViewModel) StopServer() bool {
 	if err := m.serverManager.StopServer(); err != nil {
-		log.Printf("could not stop server: %v", err)
+		log.Printf("Could not stop server, reason: %v", err)
 		return false
 	}
 
-	log.Println("server stopped successfuly")
+	log.Println("Server stopped successfuly")
 	return true
 }

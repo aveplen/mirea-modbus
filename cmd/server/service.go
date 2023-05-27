@@ -1,13 +1,6 @@
 package main
 
-import "errors"
-
-var (
-	ErrNoSuchCoil            = errors.New("no such coil")
-	ErrNoSuchDiscreteInput   = errors.New("no such discrete input")
-	ErrNoSuchHoldingRegister = errors.New("no such holding register")
-	ErrNoSuchInputRegister   = errors.New("no such input register")
-)
+import "github.com/simonvetter/modbus"
 
 type ModbusService struct {
 	coils            []Coil
@@ -74,7 +67,7 @@ func (s *ModbusService) GetCoil(addr uint16) (bool, error) {
 			return v.value, nil
 		}
 	}
-	return false, ErrNoSuchCoil
+	return false, modbus.ErrIllegalDataAddress
 }
 
 func (s *ModbusService) SetCoil(addr uint16, value bool) error {
@@ -89,7 +82,7 @@ func (s *ModbusService) SetCoil(addr uint16, value bool) error {
 	}
 
 	if !found {
-		return ErrNoSuchCoil
+		return modbus.ErrIllegalDataAddress
 	}
 
 	prev := s.coils[index].value
@@ -107,7 +100,7 @@ func (s *ModbusService) GetDiscreteInputs(addr uint16) (bool, error) {
 			return v.value, nil
 		}
 	}
-	return false, ErrNoSuchCoil
+	return false, modbus.ErrIllegalDataAddress
 }
 
 func (s *ModbusService) SetDiscreteInputs(addr uint16, value bool) error {
@@ -122,7 +115,7 @@ func (s *ModbusService) SetDiscreteInputs(addr uint16, value bool) error {
 	}
 
 	if !found {
-		return ErrNoSuchCoil
+		return modbus.ErrIllegalDataAddress
 	}
 
 	prev := s.coils[index].value
@@ -140,7 +133,7 @@ func (s *ModbusService) GetHoldingRegister(addr uint16) (uint16, error) {
 			return v.value, nil
 		}
 	}
-	return 0, ErrNoSuchCoil
+	return 0, modbus.ErrIllegalDataAddress
 }
 
 func (s *ModbusService) SetHoldingRegister(addr uint16, value uint16) error {
@@ -155,7 +148,7 @@ func (s *ModbusService) SetHoldingRegister(addr uint16, value uint16) error {
 	}
 
 	if !found {
-		return ErrNoSuchHoldingRegister
+		return modbus.ErrIllegalDataAddress
 	}
 
 	prev := s.holdingRegisters[index].value
@@ -173,7 +166,7 @@ func (s *ModbusService) GetInputRegister(addr uint16) (uint16, error) {
 			return v.value, nil
 		}
 	}
-	return 0, ErrNoSuchCoil
+	return 0, modbus.ErrIllegalDataAddress
 }
 
 func (s *ModbusService) SetInputRegister(addr uint16, value uint16) error {
@@ -188,7 +181,7 @@ func (s *ModbusService) SetInputRegister(addr uint16, value uint16) error {
 	}
 
 	if !found {
-		return ErrNoSuchInputRegister
+		return modbus.ErrIllegalDataAddress
 	}
 
 	prev := s.inputRegisters[index].value
