@@ -17,6 +17,10 @@ func (c *LogView) Append(value string) {
 	c.logEdit.SetTextSelection(len(c.logEdit.Text())+1, 0)
 }
 
+func (c *LogView) ClearLog() {
+	c.logEdit.SetText("")
+}
+
 func NewLogView() *LogView {
 	lv := &LogView{}
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"math/rand"
 	"time"
 )
@@ -42,19 +43,23 @@ func (a *ActivitySimulatorImpl) SimulateActivity(ctx context.Context) {
 
 		case <-ticker.C:
 			a.RandomizeDiscreteInputs()
-			a.RandomizeHoldingRegisters()
+			a.RandomizeInputRegisters()
 		}
 	}
 }
 
 func (a *ActivitySimulatorImpl) RandomizeDiscreteInputs() {
-	for _, coil := range a.seed.Coils {
-		a.service.SetCoil(coil.addr, rand.Int()%2 == 0)
+	for _, coil := range a.seed.DiscreteInputs {
+		c := rand.Intn(100)%2 == 0
+		a.service.SetDiscreteInput(coil.addr, c)
+		log.Printf("upating discret input at 0x%X to %v", coil.addr, c)
 	}
 }
 
-func (a *ActivitySimulatorImpl) RandomizeHoldingRegisters() {
-	for _, coil := range a.seed.HoldingRegisters {
-		a.service.SetHoldingRegister(coil.addr, uint16(rand.Int()))
+func (a *ActivitySimulatorImpl) RandomizeInputRegisters() {
+	for _, reg := range a.seed.InputRegisters {
+		r := uint16(rand.Int())
+		a.service.SetInputRegister(reg.addr, r)
+		log.Printf("upating input reg at 0x%X to 0x%X", reg.addr, r)
 	}
 }

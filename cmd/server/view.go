@@ -128,6 +128,7 @@ type ViewController struct {
 	stopServerButton      *walk.PushButton
 	startSimulationButton *walk.PushButton
 	stopSimulationButton  *walk.PushButton
+	clearLogButton        *walk.PushButton
 
 	AppendLog func(value string)
 }
@@ -325,7 +326,18 @@ func NewView(seed Dump, model MainModel) *ViewController {
 					d.Composite{
 						Layout: d.VBox{},
 						Children: []d.Widget{
-							d.Label{Text: "Log view:"},
+							d.Composite{
+								Layout: d.HBox{},
+								Children: []d.Widget{
+									d.Label{Text: "Log view:"},
+									d.PushButton{
+										AssignTo:  &view.clearLogButton,
+										Text:      "Clear",
+										OnClicked: lv.ClearLog,
+									},
+								},
+							},
+
 							lv.TextEdit,
 						},
 					},
