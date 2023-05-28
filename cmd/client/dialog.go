@@ -103,19 +103,27 @@ var (
 		DialogTypeWriteMultipleRegisters: "Write",
 		DialogTypeWriteMultipleCoils:     "Write",
 	}
+
+	resultInHex = map[DialogType]bool{
+		DialogTypeReadCoils:            false,
+		DialogTypeReadDiscreteInputs:   false,
+		DialogTypeReadHoldingRegisters: true,
+		DialogTypeReadInputRegisters:   true,
+	}
 )
 
 type DialogController struct {
 	model DialogModel
 
-	dialog           *walk.Dialog
-	errEdit          *walk.TextEdit
-	addrEdit         *walk.TextEdit
-	hexAddrCheckBox  *walk.CheckBox
-	hexInputCheckBox *walk.CheckBox
-	inputEdit        *walk.TextEdit
-	cntEdit          *walk.TextEdit
-	resultEdit       *walk.TextEdit
+	dialog            *walk.Dialog
+	errEdit           *walk.TextEdit
+	addrEdit          *walk.TextEdit
+	hexAddrCheckBox   *walk.CheckBox
+	hexInputCheckBox  *walk.CheckBox
+	inputEdit         *walk.TextEdit
+	cntEdit           *walk.TextEdit
+	resultEdit        *walk.TextEdit
+	hexResultCheckBox *walk.CheckBox
 }
 
 func (c *DialogController) Close() {
@@ -170,6 +178,10 @@ func (c *DialogController) ReadHoldingRegisters() {
 	}
 
 	c.resultUints(registers)
+	if c.hexResultCheckBox.Checked() {
+		c.resultUintsHex(registers)
+	}
+
 	c.clearError()
 }
 
@@ -187,6 +199,9 @@ func (c *DialogController) ReadInputRegisters() {
 	}
 
 	c.resultUints(registers)
+	if c.hexResultCheckBox.Checked() {
+		c.resultUintsHex(registers)
+	}
 	c.clearError()
 }
 
@@ -393,6 +408,38 @@ func (c *DialogController) addrCnt() (uint16, int, bool) {
 	return addr, cnt, true
 }
 
+func (c *DialogController) resultInHexCheckChanged() {
+	if c.resultEdit.Text() == "" {
+		return
+	}
+
+	checked := c.hexResultCheckBox.Checked()
+
+	parser := parseHex
+	if checked {
+		parser = parseUint16
+	}
+
+	values := make([]uint16, 0)
+	before := c.resultEdit.Text()
+	chunks := strings.Split(before[1:len(before)-1], " ")
+	for _, chunk := range chunks {
+		parsed, err := parser(chunk)
+		if err != nil {
+			c.setError(err)
+			return
+		}
+
+		values = append(values, parsed)
+	}
+
+	c.resultUintsHex(values)
+	if !checked {
+		c.resultUints(values)
+	}
+	c.clearError()
+}
+
 func (c *DialogController) resultSuccess() {
 	c.resultEdit.SetText("Success")
 }
@@ -403,6 +450,15 @@ func (c *DialogController) resultFail() {
 
 func (c *DialogController) resultUints(values []uint16) {
 	c.resultEdit.SetText(fmt.Sprintf("%v", values))
+}
+
+func (c *DialogController) resultUintsHex(values []uint16) {
+	res := "["
+	for _, v := range values[:len(values)-1] {
+		res += fmt.Sprintf("0x%X ", v)
+	}
+	res += fmt.Sprintf("0x%X]", values[len(values)-1])
+	c.resultEdit.SetText(res)
 }
 
 func (c *DialogController) resultBools(values []bool) {
@@ -422,7 +478,12 @@ func parseHex(input string) (uint16, error) {
 		return 0, errors.New("hex should start with '0x'")
 	}
 
-	u64, err := strconv.ParseUint(input[2:], 16, 64)
+	input = input[2:]
+	for len(input) < 4 {
+		input = "0" + input
+	}
+
+	u64, err := strconv.ParseUint(input, 16, 64)
 	if err != nil {
 		return 0, errors.New("could not parse hex input")
 	}
@@ -498,7 +559,7 @@ func DialogView(window *walk.MainWindow, model DialogModel, dialogType DialogTyp
 					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
 					Children: []d.Widget{
 						d.TextEdit{AssignTo: &controller.addrEdit, Text: "0x01"},
-						d.CheckBox{AssignTo: &controller.hexAddrCheckBox, Checked: true, Text: "Hexadecimal number"},
+						d.CheckBox{AssignTo: &controller.hexAddrCheckBox, Checked: true, Text: "Hexadecimal format"},
 					},
 				})
 
@@ -539,9 +600,25 @@ func DialogView(window *walk.MainWindow, model DialogModel, dialogType DialogTyp
 				widgets = append(widgets, d.GroupBox{
 					Title:  "Result",
 					Layout: d.VBox{Margins: d.Margins{Left: 10, Right: 10, Top: 10, Bottom: 10}},
-					Children: []d.Widget{
-						d.TextEdit{AssignTo: &controller.resultEdit, Enabled: false},
-					},
+					Children: func() []d.Widget {
+						children := make([]d.Widget, 0, 1)
+
+						children = append(children, d.TextEdit{
+							AssignTo: &controller.resultEdit,
+							Enabled:  false,
+						})
+
+						if resultInHex[dialogType] {
+							children = append(children, d.CheckBox{
+								AssignTo:         &controller.hexResultCheckBox,
+								Checked:          true,
+								Text:             "Hexadecimal format",
+								OnCheckedChanged: controller.resultInHexCheckChanged,
+							})
+						}
+
+						return children
+					}(),
 				})
 
 				widgets = append(widgets, d.HSplitter{
