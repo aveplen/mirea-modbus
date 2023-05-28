@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/lxn/walk"
 	d "github.com/lxn/walk/declarative"
@@ -28,6 +29,11 @@ func NewCoilsModel(coils []Coil) *CoilsModel {
 			Value:   coils[i].value,
 		}
 	}
+
+	sort.Slice(m.items, func(i, j int) bool {
+		return m.items[i].Address < m.items[j].Address
+	})
+
 	m.PublishRowsReset()
 	return m
 }
@@ -79,6 +85,11 @@ func (m *RegistersModel) ResetRows(registers []Register) {
 			Value:   registers[i].value,
 		}
 	}
+
+	sort.Slice(m.items, func(i, j int) bool {
+		return m.items[i].Address < m.items[j].Address
+	})
+
 	m.PublishRowsReset()
 }
 
