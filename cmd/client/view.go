@@ -161,33 +161,27 @@ func (c *MainController) WriteMultipleCoils() {
 func (c *MainController) resetConnectButton() {
 	if c.connEstablished {
 		c.connectButton.SetEnabled(false)
-		c.clearError()
 		return
 	}
 
-	c.clearError()
 	c.connectButton.SetEnabled(true)
 }
 
 func (c *MainController) resetReconnectButton() {
 	if c.connParamsSaved {
 		c.reconnectButton.SetEnabled(true)
-		c.clearError()
 		return
 	}
 
-	c.clearError()
 	c.connectButton.SetEnabled(false)
 }
 
 func (c *MainController) resetDisconnectButton() {
 	if c.connEstablished {
 		c.disconnectButton.SetEnabled(true)
-		c.clearError()
 		return
 	}
 
-	c.clearError()
 	c.disconnectButton.SetEnabled(false)
 }
 
@@ -211,8 +205,6 @@ func (c *MainController) resetFunctionButtons() {
 
 		b.SetEnabled(false)
 	}
-
-	c.clearError()
 }
 
 func (c *MainController) resetButtons() {
@@ -220,7 +212,6 @@ func (c *MainController) resetButtons() {
 	c.resetReconnectButton()
 	c.resetDisconnectButton()
 	c.resetFunctionButtons()
-	c.clearError()
 }
 
 func (c *MainController) setError(err error) {
@@ -286,12 +277,14 @@ func MainView(model MainModel) func() {
 							AssignTo:  &controller.reconnectButton,
 							Text:      "Reconnect",
 							OnClicked: controller.Reconnect,
+							Enabled:   false,
 						},
 
 						d.PushButton{
 							AssignTo:  &controller.disconnectButton,
 							Text:      "Disconnect",
 							OnClicked: controller.Disconnect,
+							Enabled:   false,
 						},
 					},
 				},
@@ -362,7 +355,7 @@ func MainView(model MainModel) func() {
 				d.Label{Text: "Errors:"},
 				d.TextEdit{
 					AssignTo:  &controller.errEdit,
-					MinSize:   d.Size{Width: 1, Height: 50},
+					MinSize:   d.Size{Height: 50},
 					TextColor: walk.RGB(255, 0, 0),
 					ReadOnly:  true,
 				},
